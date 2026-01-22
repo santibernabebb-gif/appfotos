@@ -88,6 +88,27 @@ export const storageService = {
     }
   },
 
+  async deleteAlbum(albumId: string): Promise<boolean> {
+    try {
+      if (this.isNative) {
+        await withTimeout(Filesystem.rmdir({
+          path: `${APP_DIR_NAME}/${albumId}`,
+          directory: Directory.Documents,
+          recursive: true
+        }), 2000, 'native-delete-album');
+        return true;
+      } else {
+        const appRoot = await this.opfsEnsureAppDir(true);
+        // @ts-ignore - removeEntry soporta { recursive: true } en OPFS
+        await withTimeout(appRoot.removeEntry(albumId, { recursive: true }), 2000, 'opfs-delete-album');
+        return true;
+      }
+    } catch (e) {
+      console.error('AppFotos: Error eliminando álbum:', e);
+      return false;
+    }
+  },
+
   async saveMedia(albumId: string, blob: Blob, type: 'image' | 'video'): Promise<boolean> {
     try {
       let ext = type === 'image' ? 'jpg' : (blob.type.includes('mp4') ? 'mp4' : 'webm');

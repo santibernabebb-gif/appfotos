@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { storageService } from '../services/storageService';
 import { Album } from '../types';
-import { Plus, FolderOpen, ChevronRight } from 'lucide-react';
+import { Plus, FolderOpen, ChevronRight, Trash2, Loader2 } from 'lucide-react';
 import TopBar from '../components/TopBar';
 
 interface AppHomeProps {
@@ -23,7 +23,6 @@ const AppHome: React.FC<AppHomeProps> = ({ onBack, onHome, onSelectAlbum }) => {
 
   const loadAlbums = async () => {
     setLoading(true);
-    // Fix: Changed getAlbums to listAlbums to match storageService implementation
     const data = await storageService.listAlbums();
     setAlbums(data);
     setLoading(false);
@@ -37,8 +36,19 @@ const AppHome: React.FC<AppHomeProps> = ({ onBack, onHome, onSelectAlbum }) => {
       setNewAlbumName('');
       setShowModal(false);
       await loadAlbums();
-      // Auto navigate to the new album
       onSelectAlbum(newAlbumName.trim().replace(/[^a-z0-9]/gi, '_'));
+    }
+  };
+
+  const handleDeleteAlbum = async (e: React.MouseEvent, albumId: string) => {
+    e.stopPropagation();
+    if (window.confirm('¿Borrar este álbum y todo su contenido?')) {
+      const success = await storageService.deleteAlbum(albumId);
+      if (success) {
+        setAlbums(prev => prev.filter(a => a.id !== albumId));
+      } else {
+        alert("No se pudo eliminar el álbum.");
+      }
     }
   };
 
@@ -58,8 +68,9 @@ const AppHome: React.FC<AppHomeProps> = ({ onBack, onHome, onSelectAlbum }) => {
         <h2 className="text-gray-400 uppercase text-xs font-bold tracking-widest mb-4 px-2">Carpetas detectadas</h2>
 
         {loading ? (
-          <div className="flex justify-center py-10">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <div className="flex flex-col items-center justify-center py-10 gap-2">
+            <Loader2 className="animate-spin h-8 w-8 text-blue-600" />
+            <span className="text-sm text-gray-400">Escaneando archivos...</span>
           </div>
         ) : albums.length > 0 ? (
           <div className="grid gap-3">
@@ -67,18 +78,28 @@ const AppHome: React.FC<AppHomeProps> = ({ onBack, onHome, onSelectAlbum }) => {
               <button
                 key={album.id}
                 onClick={() => onSelectAlbum(album.id)}
-                className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between hover:shadow-md transition-shadow active:scale-[0.99]"
+                className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between hover:shadow-md transition-shadow active:scale-[0.99] group"
               >
                 <div className="flex items-center gap-4">
-                  <div className="bg-blue-100 p-3 rounded-xl text-blue-600">
+                  <div className="bg-blue-100 p-3 rounded-xl text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors">
                     <FolderOpen className="w-6 h-6" />
                   </div>
                   <div className="text-left">
                     <p className="font-bold text-gray-800">{album.name}</p>
-                    <p className="text-xs text-gray-400">{album.mediaCount || 0} elementos</p>
+                    <p className="text-xs text-gray-400">Álbum local</p>
                   </div>
                 </div>
-                <ChevronRight className="w-5 h-5 text-gray-300" />
+                
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={(e) => handleDeleteAlbum(e, album.id)}
+                    className="p-3 text-gray-300 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                    aria-label="Borrar álbum"
+                  >
+                    <Trash2 className="w-5 h-5" />
+                  </button>
+                  <ChevronRight className="w-5 h-5 text-gray-300" />
+                </div>
               </button>
             ))}
           </div>
