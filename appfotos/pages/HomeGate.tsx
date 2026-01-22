@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { storageService } from '../services/storageService';
-import { FolderPlus, Play, CheckCircle2, AlertCircle } from 'lucide-react';
+import { FolderPlus, Play, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 
 interface HomeGateProps {
   onEnter: () => void;
@@ -14,12 +14,28 @@ const HomeGate: React.FC<HomeGateProps> = ({ onEnter }) => {
 
   useEffect(() => {
     checkFolder();
+
+    // Re-comprobar si el usuario vuelve a la app (por si borró la carpeta manualmente)
+    const handleRecheck = () => checkFolder();
+    window.addEventListener('focus', handleRecheck);
+    document.addEventListener('visibilitychange', handleRecheck);
+
+    return () => {
+      window.removeEventListener('focus', handleRecheck);
+      document.removeEventListener('visibilitychange', handleRecheck);
+    };
   }, []);
 
   const checkFolder = async () => {
     setLoading(true);
     const ready = await storageService.isRootReady();
     setFolderReady(ready);
+    
+    // Si no está lista pero antes lo estaba, puede que se haya borrado
+    if (!ready && !loading) {
+       // Opcional: Podríamos poner un error específico aquí si el handle existía pero la subcarpeta no
+    }
+    
     setLoading(false);
   };
 
@@ -30,7 +46,7 @@ const HomeGate: React.FC<HomeGateProps> = ({ onEnter }) => {
     if (success) {
       setFolderReady(true);
     } else {
-      setError("No se pudo configurar la carpeta. Selecciona una ubicación válida y otorga permisos.");
+      setError("No se pudo configurar la carpeta. Asegúrate de que la carpeta raíz contenga 'AppFotosSantiSystems'.");
     }
     setLoading(false);
   };
@@ -46,8 +62,8 @@ const HomeGate: React.FC<HomeGateProps> = ({ onEnter }) => {
 
       {loading ? (
         <div className="flex flex-col items-center gap-3">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <p className="text-sm text-gray-500 font-medium">Comprobando permisos...</p>
+          <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+          <p className="text-sm text-gray-500 font-medium">Sincronizando sistema de archivos...</p>
         </div>
       ) : (
         <div className="w-full max-w-sm space-y-4">
@@ -76,10 +92,15 @@ const HomeGate: React.FC<HomeGateProps> = ({ onEnter }) => {
             {folderReady ? 'Cambiar / Re-autorizar carpeta' : 'Configurar carpeta raíz'}
           </button>
 
-          {folderReady && (
+          {folderReady ? (
             <div className="flex items-center justify-center gap-2 text-green-600 mt-4 animate-in fade-in duration-500">
               <CheckCircle2 className="w-5 h-5" />
               <span className="text-sm font-medium">Carpeta vinculada correctamente</span>
+            </div>
+          ) : (
+             <div className="flex items-start justify-center gap-2 text-amber-600 mt-4 bg-amber-50 p-3 rounded-lg border border-amber-100 text-left">
+              <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
+              <p className="text-xs font-medium">Se requiere configurar una carpeta raíz. La app creará dentro la carpeta 'AppFotosSantiSystems'.</p>
             </div>
           )}
 

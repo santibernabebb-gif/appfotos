@@ -30,15 +30,22 @@ export const storageService = {
         req.onsuccess = () => res(req.result);
       });
       if (!handle) return false;
-      // Verificar si el permiso sigue activo (el navegador lo resetea tras cerrar pestaña)
+      
       const status = await handle.queryPermission({ mode: 'readwrite' });
-      return status === 'granted';
+      if (status !== 'granted') return false;
+
+      // Verificar existencia REAL de la subcarpeta
+      try {
+        await handle.getDirectoryHandle('AppFotosSantiSystems', { create: false });
+        return true;
+      } catch (e) {
+        return false; // NotFoundError o similar
+      }
     }
   },
 
   async selectRootFolder(): Promise<boolean> {
     if (this.isNative) {
-      // Stub para SAF Android: Simulamos guardando un URI
       await Preferences.set({ key: 'root_uri', value: 'content://appfotos_root' });
       await Filesystem.mkdir({ path: 'AppFotosSantiSystems', directory: Directory.Documents, recursive: true });
       return true;
@@ -47,7 +54,6 @@ export const storageService = {
         const handle = await (window as any).showDirectoryPicker({ mode: 'readwrite' });
         const store = await getStore();
         store.put(handle, KEY_ROOT);
-        // Asegurar carpeta interna
         await handle.getDirectoryHandle('AppFotosSantiSystems', { create: true });
         return true;
       } catch { return false; }
@@ -67,12 +73,14 @@ export const storageService = {
         req.onsuccess = () => res(req.result);
       });
       if (!rootHandle) return [];
-      const appRoot = await rootHandle.getDirectoryHandle('AppFotosSantiSystems', { create: true });
-      const albums = [];
-      for await (const entry of (appRoot as any).values()) {
-        if (entry.kind === 'directory') albums.push({ id: entry.name, name: entry.name });
-      }
-      return albums;
+      try {
+        const appRoot = await rootHandle.getDirectoryHandle('AppFotosSantiSystems');
+        const albums = [];
+        for await (const entry of (appRoot as any).values()) {
+          if (entry.kind === 'directory') albums.push({ id: entry.name, name: entry.name });
+        }
+        return albums;
+      } catch { return []; }
     }
   },
 
@@ -87,15 +95,20 @@ export const storageService = {
         const req = store.get(KEY_ROOT);
         req.onsuccess = () => res(req.result);
       });
-      const appRoot = await rootHandle.getDirectoryHandle('AppFotosSantiSystems');
+      const appRoot = await rootHandle.getDirectoryHandle('AppFotosSantiSystems', { create: true });
       await appRoot.getDirectoryHandle(cleanName, { create: true });
       return true;
     }
   },
 
   async saveMedia(albumId: string, blob: Blob, type: 'image' | 'video'): Promise<boolean> {
-    const ext = type === 'image' ? 'jpg' : 'mp4';
+    // Determinar extensión dinámicamente
+    let ext = 'jpg';
+    if (type === 'video') {
+      ext = blob.type.includes('mp4') ? 'mp4' : 'webm';
+    }
     const filename = `${type.toUpperCase()}_${Date.now()}.${ext}`;
+
     if (this.isNative) {
       const reader = new FileReader();
       const base64: string = await new Promise((res) => {
@@ -128,16 +141,16 @@ export const storageService = {
     if (this.isNative) {
       try {
         const res = await Filesystem.readdir({ path: `AppFotosSantiSystems/${albumId}`, directory: Directory.Documents });
-        // En nativo convertimos a URL base64 para previsualizar
         const media = [];
         for (const file of res.files) {
           if (file.type === 'file') {
+            const isVideo = file.name.endsWith('.mp4') || file.name.endsWith('.webm');
             const content = await Filesystem.readFile({ path: `AppFotosSantiSystems/${albumId}/${file.name}`, directory: Directory.Documents });
             media.push({
               id: file.name,
               name: file.name,
-              type: file.name.endsWith('.mp4') ? 'video' : 'image',
-              url: `data:image/jpeg;base64,${content.data}`,
+              type: isVideo ? 'video' : 'image',
+              url: `data:${isVideo ? 'video/webm' : 'image/jpeg'};base64,${content.data}`,
               timestamp: Date.now()
             });
           }
@@ -156,10 +169,11 @@ export const storageService = {
       for await (const entry of (albumHandle as any).values()) {
         if (entry.kind === 'file') {
           const file = await entry.getFile();
+          const isVideo = entry.name.endsWith('.mp4') || entry.name.endsWith('.webm');
           media.push({
             id: entry.name,
             name: entry.name,
-            type: entry.name.endsWith('.mp4') ? 'video' : 'image',
+            type: isVideo ? 'video' : 'image',
             url: URL.createObjectURL(file),
             timestamp: file.lastModified
           });
