@@ -1,7 +1,6 @@
 
 import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
-import { Preferences } from '@capacitor/preferences';
 
 const APP_DIR_NAME = 'AppFotosSantiSystems';
 
@@ -23,85 +22,39 @@ async function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise
 export const storageService = {
   isNative: Capacitor.isNativePlatform(),
 
-  // Helpers OPFS para Web
+  // Helpers OPFS para Web con creación automática
   async getOpfsRoot(): Promise<FileSystemDirectoryHandle> {
     return await navigator.storage.getDirectory();
   },
 
-  async opfsAppDirExists(): Promise<boolean> {
-    try {
-      // Added type assertion to cast from unknown to FileSystemDirectoryHandle
-      const root = await withTimeout(this.getOpfsRoot(), 1000, 'getOpfsRoot') as FileSystemDirectoryHandle;
-      await withTimeout(root.getDirectoryHandle(APP_DIR_NAME, { create: false }), 1000, 'getDirectoryHandle-check');
-      return true;
-    } catch (e) {
-      console.log('AppFotos: opfsAppDirExists check fallido o no existe');
-      return false;
-    }
-  },
-
   async opfsEnsureAppDir(create = true): Promise<FileSystemDirectoryHandle> {
-    // Added type assertion to cast from unknown to FileSystemDirectoryHandle
     const root = await withTimeout(this.getOpfsRoot(), 1500, 'getOpfsRoot-ensure') as FileSystemDirectoryHandle;
     return await withTimeout(root.getDirectoryHandle(APP_DIR_NAME, { create }), 1500, 'getDirectoryHandle-ensure') as FileSystemDirectoryHandle;
   },
 
-  // Interface Unificada
-  async isRootReady(): Promise<boolean> {
-    console.log('AppFotos: Iniciando isRootReady...');
+  // Inicialización nativa automática
+  async ensureNativeAppDir(): Promise<void> {
+    if (!this.isNative) return;
     try {
-      if (this.isNative) {
-        // Added type assertion to cast from unknown to any to access the 'value' property
-        const result = await withTimeout(Preferences.get({ key: 'root_uri' }), 1000, 'native-prefs-get') as any;
-        const ready = !!result?.value;
-        console.log('AppFotos: isRootReady (Native):', ready);
-        return ready;
-      } else {
-        const ready = await this.opfsAppDirExists();
-        console.log('AppFotos: isRootReady (Web/OPFS):', ready);
-        return ready;
-      }
+      await withTimeout(Filesystem.mkdir({ 
+        path: APP_DIR_NAME, 
+        directory: Directory.Documents, 
+        recursive: true 
+      }), 1500, 'native-ensure-dir');
     } catch (e) {
-      console.error('AppFotos: Error en isRootReady:', e);
-      return false;
+      // Ignorar si ya existe
     }
   },
 
-  async ensureAccessOnEnter(): Promise<boolean> {
-    console.log('AppFotos: Iniciando ensureAccessOnEnter...');
-    try {
-      return await withTimeout(this.isRootReady(), 2000, 'ensureAccessOnEnter-rootReady');
-    } catch (e) {
-      console.error('AppFotos: Error en ensureAccessOnEnter:', e);
-      return false;
-    }
-  },
-
-  async selectRootFolder(): Promise<boolean> {
-    console.log('AppFotos: Iniciando selectRootFolder...');
-    try {
-      if (this.isNative) {
-        await withTimeout(Preferences.set({ key: 'root_uri', value: 'content://appfotos_root' }), 1000, 'native-prefs-set');
-        await withTimeout(Filesystem.mkdir({ path: APP_DIR_NAME, directory: Directory.Documents, recursive: true }), 1500, 'native-mkdir');
-        return true;
-      } else {
-        await withTimeout(this.opfsEnsureAppDir(true), 2000, 'opfs-mkdir');
-        return true;
-      }
-    } catch (e) {
-      console.error('AppFotos: Error configurando carpeta:', e);
-      return false;
-    }
-  },
-
+  // Funciones de negocio con auto-inicialización
   async listAlbums(): Promise<any[]> {
     try {
       if (this.isNative) {
-        // Added type assertion to cast from unknown to any to access the 'files' property
+        await this.ensureNativeAppDir();
         const res = await withTimeout(Filesystem.readdir({ path: APP_DIR_NAME, directory: Directory.Documents }), 2000, 'native-readdir') as any;
         return res.files.filter((f: any) => f.type === 'directory').map((f: any) => ({ id: f.name, name: f.name, mediaCount: 0 }));
       } else {
-        const appRoot = await this.opfsEnsureAppDir();
+        const appRoot = await this.opfsEnsureAppDir(true);
         const albums = [];
         // @ts-ignore
         for await (const entry of appRoot.values()) {
@@ -121,10 +74,11 @@ export const storageService = {
     try {
       const cleanName = name.trim().replace(/[^a-z0-9]/gi, '_');
       if (this.isNative) {
+        await this.ensureNativeAppDir();
         await withTimeout(Filesystem.mkdir({ path: `${APP_DIR_NAME}/${cleanName}`, directory: Directory.Documents, recursive: true }), 1500, 'native-create-album');
         return true;
       } else {
-        const appRoot = await this.opfsEnsureAppDir();
+        const appRoot = await this.opfsEnsureAppDir(true);
         await withTimeout(appRoot.getDirectoryHandle(cleanName, { create: true }), 1500, 'opfs-create-album');
         return true;
       }
@@ -140,6 +94,7 @@ export const storageService = {
       const filename = `${type.toUpperCase()}_${Date.now()}.${ext}`;
 
       if (this.isNative) {
+        await this.ensureNativeAppDir();
         const reader = new FileReader();
         const base64: string = await new Promise((res, rej) => {
           reader.onload = () => res(reader.result as string);
@@ -153,13 +108,11 @@ export const storageService = {
         }), 3000, 'native-save-media');
         return true;
       } else {
-        const appRoot = await this.opfsEnsureAppDir();
-        // Added type assertions to cast from unknown to allow directory and file handle method access
+        const appRoot = await this.opfsEnsureAppDir(true);
         const albumHandle = await withTimeout(appRoot.getDirectoryHandle(albumId), 1500, 'opfs-get-album-save') as any;
         const fileHandle = await withTimeout(albumHandle.getFileHandle(filename, { create: true }), 1500, 'opfs-get-file-save') as any;
         // @ts-ignore
         const writable = await withTimeout(fileHandle.createWritable(), 2000, 'opfs-create-writable') as any;
-        // The cast to any above allows access to write() and close()
         await withTimeout(writable.write(blob), 5000, 'opfs-write-blob');
         await withTimeout(writable.close(), 2000, 'opfs-close-writable');
         return true;
@@ -173,13 +126,12 @@ export const storageService = {
   async listMedia(albumId: string): Promise<any[]> {
     try {
       if (this.isNative) {
-        // Added type assertion to cast from unknown to any to access 'files'
+        await this.ensureNativeAppDir();
         const res = await withTimeout(Filesystem.readdir({ path: `${APP_DIR_NAME}/${albumId}`, directory: Directory.Documents }), 2000, 'native-list-media') as any;
         const media = [];
         for (const file of res.files) {
           if (file.type === 'file') {
             const isVideo = file.name.endsWith('.mp4') || file.name.endsWith('.webm');
-            // Added type assertion to cast from unknown to any to access 'data'
             const content = await withTimeout(Filesystem.readFile({ path: `${APP_DIR_NAME}/${albumId}/${file.name}`, directory: Directory.Documents }), 3000, 'native-read-media') as any;
             media.push({
               id: file.name,
@@ -192,8 +144,7 @@ export const storageService = {
         }
         return media;
       } else {
-        const appRoot = await this.opfsEnsureAppDir();
-        // Added type assertion to cast from unknown to any for directory handle access
+        const appRoot = await this.opfsEnsureAppDir(true);
         const albumHandle = await withTimeout(appRoot.getDirectoryHandle(albumId), 1500, 'opfs-get-album-list') as any;
         const media = [];
         // @ts-ignore
@@ -216,5 +167,10 @@ export const storageService = {
       console.error('AppFotos: Error listando media:', e);
       return [];
     }
+  },
+
+  // Mantener compatibilidad de interfaz con HomeGate aunque no se use
+  async ensureAccessOnEnter(): Promise<boolean> {
+    return true; 
   }
 };
