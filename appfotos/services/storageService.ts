@@ -42,9 +42,9 @@ async function idbSet(key: string, value: any): Promise<void> {
     return new Promise((resolve, reject) => {
       const transaction = db.transaction(STORE_NAME, 'readwrite');
       const store = transaction.objectStore(STORE_NAME);
-      const request = store.put(value, key);
-      request.onsuccess = () => resolve();
-      request.onerror = () => reject(request.error);
+      store.put(value, key);
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error);
     });
   } catch (e) {
     console.error('IDB Set Error:', e);
@@ -63,19 +63,42 @@ export const storageService = {
         const handle = await idbGet(KEY_ROOT);
         if (!handle) return false;
         
-        const status = await handle.queryPermission({ mode: 'readwrite' });
-        if (status === 'denied') return false;
-
-        // Intentar comprobar existencia real de la subcarpeta. 
-        // Si el permiso es 'prompt', esta operación podría fallar, devolviendo false correctamente.
+        // Comprobar existencia real de la subcarpeta sin pedir permiso aún
         try {
           await handle.getDirectoryHandle('AppFotosSantiSystems', { create: false });
-          return true;
         } catch {
-          return false; 
+          return false; // Si no existe, no está lista
         }
+
+        const status = await handle.queryPermission({ mode: 'readwrite' });
+        if (status === 'denied') return false;
+        
+        // En Android Chrome suele devolver 'prompt'. No bloqueamos aquí para permitir el "Entrar"
+        return true; 
       }
     } catch {
+      return false;
+    }
+  },
+
+  async ensureAccessOnEnter(): Promise<boolean> {
+    try {
+      if (this.isNative) return true;
+      
+      const handle = await idbGet(KEY_ROOT);
+      if (!handle) return false;
+
+      // Verificar existencia antes de pedir permiso
+      const appRoot = await handle.getDirectoryHandle('AppFotosSantiSystems', { create: false });
+      
+      // Gesto de usuario: aquí sí podemos pedir permiso si es 'prompt'
+      const status = await appRoot.queryPermission({ mode: 'readwrite' });
+      if (status === 'granted') return true;
+      
+      const requestStatus = await appRoot.requestPermission({ mode: 'readwrite' });
+      return requestStatus === 'granted';
+    } catch (e) {
+      console.error('Access verification failed:', e);
       return false;
     }
   },
@@ -89,13 +112,14 @@ export const storageService = {
       } else {
         const handle = await (window as any).showDirectoryPicker({ mode: 'readwrite' });
         
-        // Pedir permiso explícito
+        // Permiso inmediato por gesto de usuario
         const perm = await handle.requestPermission({ mode: 'readwrite' });
         if (perm !== 'granted') return false;
 
-        // Asegurar que la subcarpeta existe antes de guardar el handle
+        // Crear subcarpeta obligatoria
         await handle.getDirectoryHandle('AppFotosSantiSystems', { create: true });
         
+        // Persistir handle esperando confirmación de IDB
         await idbSet(KEY_ROOT, handle);
         return true;
       }

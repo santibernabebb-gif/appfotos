@@ -33,6 +33,7 @@ const HomeGate: React.FC<HomeGateProps> = ({ onEnter }) => {
 
   const checkFolder = async () => {
     setLoading(true);
+    const startTime = Date.now();
     try {
       const ready = await storageService.isRootReady();
       setFolderReady(ready);
@@ -42,7 +43,10 @@ const HomeGate: React.FC<HomeGateProps> = ({ onEnter }) => {
       setFolderReady(false);
       setError("Error al sincronizar el sistema de archivos. Vuelve a configurar la carpeta.");
     } finally {
-      setLoading(false);
+      // Evitar parpadeo: asegurar al menos 250ms de spinner
+      const elapsed = Date.now() - startTime;
+      const delay = Math.max(0, 250 - elapsed);
+      setTimeout(() => setLoading(false), delay);
     }
   };
 
@@ -54,13 +58,31 @@ const HomeGate: React.FC<HomeGateProps> = ({ onEnter }) => {
       if (success) {
         await checkFolder();
       } else {
-        setError("No se pudo configurar la carpeta. Asegúrate de que la carpeta raíz contenga 'AppFotosSantiSystems'.");
+        setError("No se pudo configurar la carpeta. Asegúrate de que la carpeta raíz sea accesible.");
       }
     } catch (e) {
       console.error('Handle create folder error:', e);
       setError("Error al seleccionar carpeta.");
     } finally {
       setSelectingFolder(false);
+    }
+  };
+
+  const handleEnter = async () => {
+    setError(null);
+    setLoading(true);
+    try {
+      const hasAccess = await storageService.ensureAccessOnEnter();
+      if (hasAccess) {
+        onEnter();
+      } else {
+        setFolderReady(false);
+        setError("Acceso denegado o carpeta no encontrada. Por favor, re-autoriza o configura la carpeta de nuevo.");
+      }
+    } catch (e) {
+      setError("Error al verificar permisos.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -81,7 +103,7 @@ const HomeGate: React.FC<HomeGateProps> = ({ onEnter }) => {
       ) : (
         <div className="w-full max-w-sm space-y-4">
           <button
-            onClick={onEnter}
+            onClick={handleEnter}
             disabled={!folderReady || selectingFolder}
             className={`w-full py-4 px-6 rounded-2xl flex items-center justify-center gap-3 font-bold text-lg transition-all shadow-lg ${
               folderReady && !selectingFolder
