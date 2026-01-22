@@ -41,11 +41,11 @@ const HomeGate: React.FC<HomeGateProps> = ({ onEnter }) => {
     } catch (e) {
       console.error('Check folder error:', e);
       setFolderReady(false);
-      setError("Error al sincronizar el sistema de archivos. Vuelve a configurar la carpeta.");
+      setError("Error al sincronizar el sistema de archivos local.");
     } finally {
-      // Evitar parpadeo: asegurar al menos 250ms de spinner
+      // Garantizar un mínimo de feedback visual para evitar parpadeos bruscos
       const elapsed = Date.now() - startTime;
-      const delay = Math.max(0, 250 - elapsed);
+      const delay = Math.max(0, 300 - elapsed);
       setTimeout(() => setLoading(false), delay);
     }
   };
@@ -58,11 +58,11 @@ const HomeGate: React.FC<HomeGateProps> = ({ onEnter }) => {
       if (success) {
         await checkFolder();
       } else {
-        setError("No se pudo configurar la carpeta. Asegúrate de que la carpeta raíz sea accesible.");
+        setError("No se pudo inicializar el almacenamiento local.");
       }
     } catch (e) {
       console.error('Handle create folder error:', e);
-      setError("Error al seleccionar carpeta.");
+      setError("Error al configurar el sistema de archivos.");
     } finally {
       setSelectingFolder(false);
     }
@@ -77,17 +77,17 @@ const HomeGate: React.FC<HomeGateProps> = ({ onEnter }) => {
         onEnter();
       } else {
         setFolderReady(false);
-        setError("Acceso denegado o carpeta no encontrada. Por favor, re-autoriza o configura la carpeta de nuevo.");
+        setError("No se pudo acceder a la carpeta. Por favor, vuelve a configurarla.");
       }
     } catch (e) {
-      setError("Error al verificar permisos.");
+      setError("Error al verificar acceso local.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-gradient-to-br from-blue-50 to-white text-center">
+    <div className="antialiased min-h-screen flex flex-col items-center justify-center p-6 bg-gradient-to-br from-blue-50 to-white text-center">
       <div className="mb-8 p-4 bg-blue-600 rounded-3xl shadow-xl">
         <FolderPlus className="w-16 h-16 text-white" />
       </div>
@@ -129,18 +129,18 @@ const HomeGate: React.FC<HomeGateProps> = ({ onEnter }) => {
             ) : (
               <FolderPlus className="w-6 h-6" />
             )}
-            {selectingFolder ? 'Seleccionando...' : folderReady ? 'Cambiar / Re-autorizar carpeta' : 'Configurar carpeta raíz'}
+            {selectingFolder ? 'Configurando...' : folderReady ? 'Cambiar / Reiniciar carpeta' : 'Crear carpeta en local'}
           </button>
 
           {folderReady && !selectingFolder ? (
             <div className="flex items-center justify-center gap-2 text-green-600 mt-4 animate-in fade-in duration-500">
               <CheckCircle2 className="w-5 h-5" />
-              <span className="text-sm font-medium">Carpeta vinculada correctamente</span>
+              <span className="text-sm font-medium">Almacenamiento local listo</span>
             </div>
           ) : !selectingFolder && (
              <div className="flex items-start justify-center gap-2 text-amber-600 mt-4 bg-amber-50 p-3 rounded-lg border border-amber-100 text-left">
               <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
-              <p className="text-xs font-medium">Se requiere configurar una carpeta raíz. La app creará dentro la carpeta 'AppFotosSantiSystems'.</p>
+              <p className="text-xs font-medium">Se requiere crear una carpeta local privada para guardar tus álbumes de forma segura en este navegador.</p>
             </div>
           )}
 

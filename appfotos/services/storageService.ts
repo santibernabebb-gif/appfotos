@@ -3,78 +3,39 @@ import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Preferences } from '@capacitor/preferences';
 
-const IDB_NAME = 'AppFotosSantiDB';
-const STORE_NAME = 'handles';
-const KEY_ROOT = 'rootHandle';
-
-async function openDB(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(IDB_NAME, 1);
-    request.onupgradeneeded = () => {
-      const db = request.result;
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        db.createObjectStore(STORE_NAME);
-      }
-    };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
-}
-
-async function idbGet(key: string): Promise<any> {
-  try {
-    const db = await openDB();
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction(STORE_NAME, 'readonly');
-      const store = transaction.objectStore(STORE_NAME);
-      const request = store.get(key);
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
-    });
-  } catch {
-    return null;
-  }
-}
-
-async function idbSet(key: string, value: any): Promise<void> {
-  try {
-    const db = await openDB();
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction(STORE_NAME, 'readwrite');
-      const store = transaction.objectStore(STORE_NAME);
-      store.put(value, key);
-      transaction.oncomplete = () => resolve();
-      transaction.onerror = () => reject(transaction.error);
-    });
-  } catch (e) {
-    console.error('IDB Set Error:', e);
-  }
-}
+const APP_DIR_NAME = 'AppFotosSantiSystems';
 
 export const storageService = {
   isNative: Capacitor.isNativePlatform(),
 
+  // Helpers OPFS para Web
+  async getOpfsRoot(): Promise<FileSystemDirectoryHandle> {
+    return await navigator.storage.getDirectory();
+  },
+
+  async opfsAppDirExists(): Promise<boolean> {
+    try {
+      const root = await this.getOpfsRoot();
+      await root.getDirectoryHandle(APP_DIR_NAME, { create: false });
+      return true;
+    } catch {
+      return false;
+    }
+  },
+
+  async opfsEnsureAppDir(create = true): Promise<FileSystemDirectoryHandle> {
+    const root = await this.getOpfsRoot();
+    return await root.getDirectoryHandle(APP_DIR_NAME, { create });
+  },
+
+  // Interface Unificada
   async isRootReady(): Promise<boolean> {
     try {
       if (this.isNative) {
         const { value } = await Preferences.get({ key: 'root_uri' });
         return !!value;
       } else {
-        const handle = await idbGet(KEY_ROOT);
-        if (!handle) return false;
-        
-        // Comprobar existencia real de la subcarpeta sin pedir permiso aún
-        try {
-          await handle.getDirectoryHandle('AppFotosSantiSystems', { create: false });
-        } catch {
-          return false; // Si no existe, no está lista
-        }
-
-        const status = await handle.queryPermission({ mode: 'readwrite' });
-        if (status === 'denied') return false;
-        
-        // En Android Chrome suele devolver 'prompt'. No bloqueamos aquí para permitir el "Entrar"
-        return true; 
+        return await this.opfsAppDirExists();
       }
     } catch {
       return false;
@@ -82,49 +43,23 @@ export const storageService = {
   },
 
   async ensureAccessOnEnter(): Promise<boolean> {
-    try {
-      if (this.isNative) return true;
-      
-      const handle = await idbGet(KEY_ROOT);
-      if (!handle) return false;
-
-      // Verificar existencia antes de pedir permiso
-      const appRoot = await handle.getDirectoryHandle('AppFotosSantiSystems', { create: false });
-      
-      // Gesto de usuario: aquí sí podemos pedir permiso si es 'prompt'
-      const status = await appRoot.queryPermission({ mode: 'readwrite' });
-      if (status === 'granted') return true;
-      
-      const requestStatus = await appRoot.requestPermission({ mode: 'readwrite' });
-      return requestStatus === 'granted';
-    } catch (e) {
-      console.error('Access verification failed:', e);
-      return false;
-    }
+    // En OPFS el acceso es implícito si el directorio existe
+    return await this.isRootReady();
   },
 
   async selectRootFolder(): Promise<boolean> {
     try {
       if (this.isNative) {
         await Preferences.set({ key: 'root_uri', value: 'content://appfotos_root' });
-        await Filesystem.mkdir({ path: 'AppFotosSantiSystems', directory: Directory.Documents, recursive: true });
+        await Filesystem.mkdir({ path: APP_DIR_NAME, directory: Directory.Documents, recursive: true });
         return true;
       } else {
-        const handle = await (window as any).showDirectoryPicker({ mode: 'readwrite' });
-        
-        // Permiso inmediato por gesto de usuario
-        const perm = await handle.requestPermission({ mode: 'readwrite' });
-        if (perm !== 'granted') return false;
-
-        // Crear subcarpeta obligatoria
-        await handle.getDirectoryHandle('AppFotosSantiSystems', { create: true });
-        
-        // Persistir handle esperando confirmación de IDB
-        await idbSet(KEY_ROOT, handle);
+        // En Web simplemente aseguramos que el directorio OPFS existe
+        await this.opfsEnsureAppDir(true);
         return true;
       }
     } catch (e) {
-      console.error('Select folder error:', e);
+      console.error('Error configurando carpeta:', e);
       return false;
     }
   },
@@ -132,15 +67,16 @@ export const storageService = {
   async listAlbums(): Promise<any[]> {
     try {
       if (this.isNative) {
-        const res = await Filesystem.readdir({ path: 'AppFotosSantiSystems', directory: Directory.Documents });
-        return res.files.filter(f => f.type === 'directory').map(f => ({ id: f.name, name: f.name }));
+        const res = await Filesystem.readdir({ path: APP_DIR_NAME, directory: Directory.Documents });
+        return res.files.filter(f => f.type === 'directory').map(f => ({ id: f.name, name: f.name, mediaCount: 0 }));
       } else {
-        const rootHandle = await idbGet(KEY_ROOT);
-        if (!rootHandle) return [];
-        const appRoot = await rootHandle.getDirectoryHandle('AppFotosSantiSystems');
+        const appRoot = await this.opfsEnsureAppDir();
         const albums = [];
-        for await (const entry of (appRoot as any).values()) {
-          if (entry.kind === 'directory') albums.push({ id: entry.name, name: entry.name });
+        // @ts-ignore - entries() es estándar en handles
+        for await (const entry of appRoot.values()) {
+          if (entry.kind === 'directory') {
+            albums.push({ id: entry.name, name: entry.name, mediaCount: 0 });
+          }
         }
         return albums;
       }
@@ -153,12 +89,10 @@ export const storageService = {
     try {
       const cleanName = name.trim().replace(/[^a-z0-9]/gi, '_');
       if (this.isNative) {
-        await Filesystem.mkdir({ path: `AppFotosSantiSystems/${cleanName}`, directory: Directory.Documents, recursive: true });
+        await Filesystem.mkdir({ path: `${APP_DIR_NAME}/${cleanName}`, directory: Directory.Documents, recursive: true });
         return true;
       } else {
-        const rootHandle = await idbGet(KEY_ROOT);
-        if (!rootHandle) return false;
-        const appRoot = await rootHandle.getDirectoryHandle('AppFotosSantiSystems', { create: true });
+        const appRoot = await this.opfsEnsureAppDir();
         await appRoot.getDirectoryHandle(cleanName, { create: true });
         return true;
       }
@@ -169,10 +103,7 @@ export const storageService = {
 
   async saveMedia(albumId: string, blob: Blob, type: 'image' | 'video'): Promise<boolean> {
     try {
-      let ext = 'jpg';
-      if (type === 'video') {
-        ext = blob.type.includes('mp4') ? 'mp4' : 'webm';
-      }
+      let ext = type === 'image' ? 'jpg' : (blob.type.includes('mp4') ? 'mp4' : 'webm');
       const filename = `${type.toUpperCase()}_${Date.now()}.${ext}`;
 
       if (this.isNative) {
@@ -182,23 +113,23 @@ export const storageService = {
           reader.readAsDataURL(blob);
         });
         await Filesystem.writeFile({
-          path: `AppFotosSantiSystems/${albumId}/${filename}`,
+          path: `${APP_DIR_NAME}/${albumId}/${filename}`,
           data: base64.split(',')[1],
           directory: Directory.Documents
         });
         return true;
       } else {
-        const rootHandle = await idbGet(KEY_ROOT);
-        if (!rootHandle) return false;
-        const appRoot = await rootHandle.getDirectoryHandle('AppFotosSantiSystems');
+        const appRoot = await this.opfsEnsureAppDir();
         const albumHandle = await appRoot.getDirectoryHandle(albumId);
         const fileHandle = await albumHandle.getFileHandle(filename, { create: true });
+        // @ts-ignore - createWritable es estándar en OPFS
         const writable = await fileHandle.createWritable();
         await writable.write(blob);
         await writable.close();
         return true;
       }
-    } catch {
+    } catch (e) {
+      console.error('Error guardando media:', e);
       return false;
     }
   },
@@ -206,12 +137,12 @@ export const storageService = {
   async listMedia(albumId: string): Promise<any[]> {
     try {
       if (this.isNative) {
-        const res = await Filesystem.readdir({ path: `AppFotosSantiSystems/${albumId}`, directory: Directory.Documents });
+        const res = await Filesystem.readdir({ path: `${APP_DIR_NAME}/${albumId}`, directory: Directory.Documents });
         const media = [];
         for (const file of res.files) {
           if (file.type === 'file') {
             const isVideo = file.name.endsWith('.mp4') || file.name.endsWith('.webm');
-            const content = await Filesystem.readFile({ path: `AppFotosSantiSystems/${albumId}/${file.name}`, directory: Directory.Documents });
+            const content = await Filesystem.readFile({ path: `${APP_DIR_NAME}/${albumId}/${file.name}`, directory: Directory.Documents });
             media.push({
               id: file.name,
               name: file.name,
@@ -223,12 +154,11 @@ export const storageService = {
         }
         return media;
       } else {
-        const rootHandle = await idbGet(KEY_ROOT);
-        if (!rootHandle) return [];
-        const appRoot = await rootHandle.getDirectoryHandle('AppFotosSantiSystems');
+        const appRoot = await this.opfsEnsureAppDir();
         const albumHandle = await appRoot.getDirectoryHandle(albumId);
         const media = [];
-        for await (const entry of (albumHandle as any).values()) {
+        // @ts-ignore
+        for await (const entry of albumHandle.values()) {
           if (entry.kind === 'file') {
             const file = await entry.getFile();
             const isVideo = entry.name.endsWith('.mp4') || entry.name.endsWith('.webm');
