@@ -32,14 +32,15 @@ export const storageService = {
       if (!handle) return false;
       
       const status = await handle.queryPermission({ mode: 'readwrite' });
-      if (status !== 'granted') return false;
+      if (status === 'denied') return false;
 
-      // Verificar existencia REAL de la subcarpeta
+      // Si es 'prompt', intentamos comprobar la existencia igual. 
+      // Si el acceso falla por falta de permiso, el catch devolverá false.
       try {
         await handle.getDirectoryHandle('AppFotosSantiSystems', { create: false });
         return true;
       } catch (e) {
-        return false; // NotFoundError o similar
+        return false; 
       }
     }
   },
@@ -52,8 +53,15 @@ export const storageService = {
     } else {
       try {
         const handle = await (window as any).showDirectoryPicker({ mode: 'readwrite' });
+        
+        // Pedir permiso explícito antes de guardar
+        const perm = await handle.requestPermission({ mode: 'readwrite' });
+        if (perm !== 'granted') return false;
+
         const store = await getStore();
         store.put(handle, KEY_ROOT);
+        
+        // Asegurar que la subcarpeta existe
         await handle.getDirectoryHandle('AppFotosSantiSystems', { create: true });
         return true;
       } catch { return false; }
@@ -102,7 +110,6 @@ export const storageService = {
   },
 
   async saveMedia(albumId: string, blob: Blob, type: 'image' | 'video'): Promise<boolean> {
-    // Determinar extensión dinámicamente
     let ext = 'jpg';
     if (type === 'video') {
       ext = blob.type.includes('mp4') ? 'mp4' : 'webm';
