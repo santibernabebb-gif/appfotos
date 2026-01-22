@@ -33,9 +33,17 @@ const HomeGate: React.FC<HomeGateProps> = ({ onEnter }) => {
 
   const checkFolder = async () => {
     setLoading(true);
-    const ready = await storageService.isRootReady();
-    setFolderReady(ready);
-    setLoading(false);
+    try {
+      const ready = await storageService.isRootReady();
+      setFolderReady(ready);
+      setError(null);
+    } catch (e) {
+      console.error('Check folder error:', e);
+      setFolderReady(false);
+      setError("Error al sincronizar el sistema de archivos. Vuelve a configurar la carpeta.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleCreateFolder = async () => {
@@ -44,11 +52,12 @@ const HomeGate: React.FC<HomeGateProps> = ({ onEnter }) => {
     try {
       const success = await storageService.selectRootFolder();
       if (success) {
-        await checkFolder(); // Re-validar estado real tras creación
+        await checkFolder();
       } else {
         setError("No se pudo configurar la carpeta. Asegúrate de que la carpeta raíz contenga 'AppFotosSantiSystems'.");
       }
     } catch (e) {
+      console.error('Handle create folder error:', e);
       setError("Error al seleccionar carpeta.");
     } finally {
       setSelectingFolder(false);
