@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { ImageIcon, Play } from 'lucide-react';
+import { Camera, ArrowRight, Moon } from 'lucide-react';
 
 interface HomeGateProps {
   onEnter: () => void;
@@ -8,32 +8,64 @@ interface HomeGateProps {
 
 const HomeGate: React.FC<HomeGateProps> = ({ onEnter }) => {
   return (
-    <div className="antialiased min-h-screen flex flex-col items-center justify-center p-6 bg-gradient-to-br from-blue-50 to-white text-center">
-      <div className="mb-8 p-6 bg-blue-600 rounded-[2.5rem] shadow-xl animate-in fade-in zoom-in duration-700">
-        <ImageIcon className="w-16 h-16 text-white" />
-      </div>
+    <div className="relative min-h-screen bg-[#00CCD1] flex flex-col items-center justify-between p-8 overflow-hidden font-sans select-none text-center">
       
-      <h1 className="text-4xl font-extrabold text-gray-900 mb-2">AppFotos</h1>
-      <p className="text-gray-600 mb-10 max-w-xs font-medium">Gestiona tus álbumes de fotos y vídeos de forma local y privada.</p>
+      {/* Elementos decorativos de fondo (Blobs) */}
+      <div className="absolute -top-10 -left-10 w-96 h-96 bg-[#17AAB1] rounded-full filter blur-3xl opacity-60"></div>
+      <div className="absolute top-1/2 -right-20 w-80 h-80 bg-[#4ADE80] rounded-full filter blur-3xl opacity-40 animate-pulse"></div>
+      <div className="absolute bottom-20 -left-20 w-80 h-80 bg-[#10B981] rounded-full filter blur-3xl opacity-30"></div>
 
-      <div className="w-full max-w-xs space-y-4">
+      {/* Icono de modo noche */}
+      <div className="absolute top-10 right-10 z-20">
+        <div className="w-12 h-12 bg-white/20 backdrop-blur-lg rounded-full flex items-center justify-center border border-white/10 shadow-lg">
+          <Moon className="w-5 h-5 text-white" />
+        </div>
+      </div>
+
+      {/* Contenedor del Icono Central */}
+      <div className="flex-1 flex items-center justify-center z-10 mt-12">
+        <div className="relative">
+          {/* Capas de resplandor de colores detrás del icono */}
+          <div className="absolute inset-0 bg-gradient-to-tr from-yellow-400 via-green-400 to-cyan-400 rounded-[3.5rem] scale-125 blur-2xl opacity-50"></div>
+          <div className="absolute inset-0 bg-[#A3E635] rounded-[3.5rem] scale-110 opacity-60 rotate-3"></div>
+          
+          {/* El cuadrado blanco con el logo */}
+          <div className="relative w-52 h-52 bg-white rounded-[4rem] shadow-2xl flex items-center justify-center p-9">
+            <div className="relative w-full h-full bg-gradient-to-b from-[#40A9FF] to-[#1890FF] rounded-[2.5rem] flex items-center justify-center shadow-[inset_0_2px_10px_rgba(255,255,255,0.4)]">
+              <Camera className="w-20 h-20 text-white stroke-[2]" />
+              {/* Punto rojo de "grabando" */}
+              <div className="absolute top-4 right-4 w-5 h-5 bg-[#FF4D4F] border-[3px] border-white rounded-full shadow-md"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Textos y Acción */}
+      <div className="w-full max-w-sm z-10 flex flex-col items-center mb-6">
+        <h1 className="text-white text-[3.5rem] leading-[1] font-black tracking-tighter mb-4 drop-shadow-sm uppercase">
+          APP <br />
+          <span className="text-[#CCFF00]">FOTOS</span>
+        </h1>
+        
+        <p className="text-white/95 text-base font-bold px-6 mb-14 leading-relaxed">
+          La forma más vibrante de organizar y revivir tus momentos favoritos ahí en <span className="font-black">APP FOTOS</span>.
+        </p>
+
         <button
           onClick={onEnter}
-          className="w-full py-5 px-6 bg-blue-600 text-white rounded-2xl flex items-center justify-center gap-3 font-bold text-xl transition-all shadow-lg hover:bg-blue-700 active:scale-95 shadow-blue-200"
+          className="w-full bg-white text-[#00CCD1] py-6 px-10 rounded-[2.5rem] flex items-center justify-center gap-3 font-black text-2xl shadow-[0_15px_35px_rgba(0,0,0,0.1)] hover:scale-[1.02] active:scale-95 transition-all duration-300 group"
         >
-          <Play className="w-6 h-6 fill-current" />
-          Entrar a la app
+          <span>Empezar</span>
+          <ArrowRight className="w-7 h-7 group-hover:translate-x-1 transition-transform stroke-[3]" />
         </button>
+
+        <span className="text-white/70 text-[0.65rem] font-black tracking-[0.3em] uppercase mt-8">
+          Toca para entrar
+        </span>
       </div>
 
-      <div className="mt-12 flex items-start justify-center gap-2 text-gray-400 bg-gray-50/50 p-4 rounded-2xl border border-gray-100 max-w-xs text-left">
-        <div className="mt-1 w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0"></div>
-        <p className="text-xs font-medium leading-relaxed">Tus archivos se guardan directamente en el almacenamiento de este dispositivo mediante tecnología de sistema de archivos local.</p>
-      </div>
-      
-      <footer className="mt-auto pt-10 text-[10px] text-gray-300 font-mono tracking-widest uppercase">
-        SANTISYSTEMS &copy; 2024
-      </footer>
+      {/* Barra de inicio inferior */}
+      <div className="w-32 h-1.5 bg-white/30 rounded-full mb-2"></div>
     </div>
   );
 };
