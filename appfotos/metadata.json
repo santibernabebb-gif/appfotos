@@ -1,0 +1,8 @@
+{
+  "name": "AppFotosSantiSystems",
+  "description": "Una aplicación robusta para gestionar álbumes de fotos y vídeos localmente, compatible con Web (PWA) y Android (Capacitor) mediante acceso directo al sistema de archivos.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
