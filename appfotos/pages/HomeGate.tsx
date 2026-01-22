@@ -29,60 +29,81 @@ const HomeGate: React.FC<HomeGateProps> = ({ onEnter }) => {
       window.removeEventListener('focus', handleRecheck);
       document.removeEventListener('visibilitychange', handleRecheck);
     };
-  }, [loading, selectingFolder]);
+  }, []);
 
   const checkFolder = async () => {
+    console.log('AppFotos: Inicio checkFolder');
     setLoading(true);
+    setError(null);
     const startTime = Date.now();
+
+    // Temporizador de seguridad global de 3 segundos
+    const safetyTimeout = setTimeout(() => {
+      console.warn('AppFotos: Safety timeout disparado en HomeGate');
+      setError("La sincronización está tardando demasiado. Reintenta configurar la carpeta.");
+      setLoading(false);
+    }, 3000);
+
     try {
       const ready = await storageService.isRootReady();
+      console.log('AppFotos: Resultado isRootReady:', ready);
       setFolderReady(ready);
-      setError(null);
     } catch (e) {
-      console.error('Check folder error:', e);
+      console.error('AppFotos: Excepción en checkFolder:', e);
       setFolderReady(false);
-      setError("Error al sincronizar el sistema de archivos local.");
+      setError("Error crítico al sincronizar el sistema de archivos.");
     } finally {
-      // Garantizar un mínimo de feedback visual para evitar parpadeos bruscos
+      clearTimeout(safetyTimeout);
+      // Feedback visual mínimo de 250ms
       const elapsed = Date.now() - startTime;
-      const delay = Math.max(0, 300 - elapsed);
-      setTimeout(() => setLoading(false), delay);
+      const delay = Math.max(0, 250 - elapsed);
+      setTimeout(() => {
+        setLoading(false);
+        console.log('AppFotos: Fin checkFolder');
+      }, delay);
     }
   };
 
   const handleCreateFolder = async () => {
+    console.log('AppFotos: Inicio handleCreateFolder');
     setError(null);
     setSelectingFolder(true);
     try {
       const success = await storageService.selectRootFolder();
+      console.log('AppFotos: Resultado selectRootFolder:', success);
       if (success) {
         await checkFolder();
       } else {
-        setError("No se pudo inicializar el almacenamiento local.");
+        setError("No se pudo configurar el almacenamiento local.");
       }
     } catch (e) {
-      console.error('Handle create folder error:', e);
+      console.error('AppFotos: Error en handleCreateFolder:', e);
       setError("Error al configurar el sistema de archivos.");
     } finally {
       setSelectingFolder(false);
+      console.log('AppFotos: Fin handleCreateFolder');
     }
   };
 
   const handleEnter = async () => {
+    console.log('AppFotos: Inicio handleEnter');
     setError(null);
     setLoading(true);
     try {
       const hasAccess = await storageService.ensureAccessOnEnter();
+      console.log('AppFotos: Resultado ensureAccessOnEnter:', hasAccess);
       if (hasAccess) {
         onEnter();
       } else {
         setFolderReady(false);
-        setError("No se pudo acceder a la carpeta. Por favor, vuelve a configurarla.");
+        setError("No se pudo acceder a los archivos. Por favor, re-configura la carpeta.");
       }
     } catch (e) {
+      console.error('AppFotos: Error en handleEnter:', e);
       setError("Error al verificar acceso local.");
     } finally {
       setLoading(false);
+      console.log('AppFotos: Fin handleEnter');
     }
   };
 
