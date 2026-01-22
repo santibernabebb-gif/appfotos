@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Camera, Video, Grid, Image as ImageIcon, Film, X, Loader2, Circle } from 'lucide-react';
+import { Camera, Video, Grid, Image as ImageIcon, Film, X, Loader2, Trash2, CheckCircle2 } from 'lucide-react';
 import TopBar from '../components/TopBar';
 import { MediaItem } from '../types';
 import { storageService } from '../services/storageService';
@@ -21,6 +21,7 @@ const AlbumView: React.FC<AlbumViewProps> = ({ albumId, onBack, onHome }) => {
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [cameraMode, setCameraMode] = useState<'photo' | 'video'>('photo');
   const [isRecording, setIsRecording] = useState(false);
+  const [showSavedFeedback, setShowSavedFeedback] = useState(false);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -30,7 +31,6 @@ const AlbumView: React.FC<AlbumViewProps> = ({ albumId, onBack, onHome }) => {
   useEffect(() => {
     loadContent();
     return () => {
-      // Cleanup URLs al desmontar
       items.forEach(item => {
         if (item.url.startsWith('blob:')) URL.revokeObjectURL(item.url);
       });
@@ -50,6 +50,27 @@ const AlbumView: React.FC<AlbumViewProps> = ({ albumId, onBack, onHome }) => {
     if (filter === 'videos') return item.type === 'video';
     return true;
   });
+
+  const handleDelete = async (e: React.MouseEvent, item: MediaItem) => {
+    e.stopPropagation();
+    if (window.confirm('¿Borrar este archivo?')) {
+      const success = await storageService.deleteMedia(albumId, item.id);
+      if (success) {
+        setItems(prev => prev.filter(i => i.id !== item.id));
+      } else {
+        alert("No se pudo eliminar el archivo.");
+      }
+    }
+  };
+
+  const openInSystemViewer = (item: MediaItem) => {
+    window.open(item.url, '_blank');
+  };
+
+  const triggerSavedFeedback = () => {
+    setShowSavedFeedback(true);
+    setTimeout(() => setShowSavedFeedback(false), 1200);
+  };
 
   const openCamera = async (mode: 'photo' | 'video') => {
     const hasCam = await permissionsService.requestCamera();
@@ -88,11 +109,12 @@ const AlbumView: React.FC<AlbumViewProps> = ({ albumId, onBack, onHome }) => {
     }
   };
 
-  const closeCamera = () => {
+  const closeCamera = async () => {
     if (isRecording) stopWebRecording();
     if (streamRef.current) streamRef.current.getTracks().forEach(track => track.stop());
     setIsCameraOpen(false);
     setIsRecording(false);
+    await loadContent();
   };
 
   const captureWebPhoto = async () => {
@@ -105,9 +127,8 @@ const AlbumView: React.FC<AlbumViewProps> = ({ albumId, onBack, onHome }) => {
       ctx.drawImage(videoRef.current, 0, 0);
       canvas.toBlob(async (blob) => {
         if (blob) {
-          await storageService.saveMedia(albumId, blob, 'image');
-          closeCamera();
-          await loadContent();
+          const success = await storageService.saveMedia(albumId, blob, 'image');
+          if (success) triggerSavedFeedback();
         }
       }, 'image/jpeg', 0.9);
     }
@@ -116,23 +137,20 @@ const AlbumView: React.FC<AlbumViewProps> = ({ albumId, onBack, onHome }) => {
   const startWebRecording = () => {
     if (!streamRef.current) return;
     recordedChunksRef.current = [];
-    
     try {
       const options = { mimeType: 'video/webm;codecs=vp8,opus' };
       if (!MediaRecorder.isTypeSupported(options.mimeType)) {
           options.mimeType = 'video/webm';
       }
-      
       const recorder = new MediaRecorder(streamRef.current, options);
       recorder.ondataavailable = (e) => {
         if (e.data.size > 0) recordedChunksRef.current.push(e.data);
       };
       recorder.onstop = async () => {
         const blob = new Blob(recordedChunksRef.current, { type: options.mimeType });
-        await storageService.saveMedia(albumId, blob, 'video');
-        await loadContent();
+        const success = await storageService.saveMedia(albumId, blob, 'video');
+        if (success) triggerSavedFeedback();
       };
-      
       mediaRecorderRef.current = recorder;
       recorder.start();
       setIsRecording(true);
@@ -145,7 +163,6 @@ const AlbumView: React.FC<AlbumViewProps> = ({ albumId, onBack, onHome }) => {
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
-      closeCamera();
     }
   };
 
@@ -194,18 +211,25 @@ const AlbumView: React.FC<AlbumViewProps> = ({ albumId, onBack, onHome }) => {
         ) : filteredItems.length > 0 ? (
           <div className="grid grid-cols-2 gap-3">
             {filteredItems.map(item => (
-              <div key={item.id} className="aspect-square bg-gray-200 rounded-2xl overflow-hidden relative shadow-sm border border-gray-100 group">
+              <div 
+                key={item.id} 
+                onClick={() => openInSystemViewer(item)}
+                className="aspect-square bg-gray-200 rounded-2xl overflow-hidden relative shadow-sm border border-gray-100 group active:scale-95 transition-transform cursor-pointer"
+              >
                 {item.type === 'image' ? (
                   <img src={item.url} alt={item.name} className="w-full h-full object-cover" />
                 ) : (
-                  <video 
-                    src={item.url} 
-                    className="w-full h-full object-cover" 
-                    controls 
-                    playsInline
-                  />
+                  <video src={item.url} className="w-full h-full object-cover" playsInline />
                 )}
-                <div className="absolute top-2 right-2">
+                
+                <button 
+                  onClick={(e) => handleDelete(e, item)}
+                  className="absolute bottom-2 right-2 bg-red-600/90 p-2 rounded-xl text-white shadow-md active:scale-90 transition-all z-10 hover:bg-red-700"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+
+                <div className="absolute top-2 right-2 pointer-events-none">
                   {item.type === 'video' ? (
                     <div className="bg-black/60 p-1.5 rounded-lg text-white">
                       <Film className="w-3.5 h-3.5" />
@@ -239,11 +263,23 @@ const AlbumView: React.FC<AlbumViewProps> = ({ albumId, onBack, onHome }) => {
                  </div>
                )}
             </div>
-            <button onClick={closeCamera} className="p-2 bg-white/10 rounded-full hover:bg-white/20 transition-colors"><X /></button>
+            <button onClick={closeCamera} className="px-4 py-2 bg-white/10 rounded-xl font-bold text-sm flex items-center gap-2 hover:bg-white/20 transition-colors">
+              <X className="w-5 h-5" /> Salir
+            </button>
           </div>
-          <div className="flex-1 flex items-center justify-center overflow-hidden bg-zinc-900">
+          
+          <div className="flex-1 flex items-center justify-center overflow-hidden bg-zinc-900 relative">
             <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-contain" />
+            {showSavedFeedback && (
+              <div className="absolute inset-0 flex items-center justify-center z-50 pointer-events-none animate-in fade-in zoom-in duration-300">
+                <div className="bg-green-600/90 text-white px-6 py-3 rounded-full flex items-center gap-2 shadow-2xl">
+                  <CheckCircle2 className="w-6 h-6" />
+                  <span className="font-bold text-lg">Guardado ✓</span>
+                </div>
+              </div>
+            )}
           </div>
+
           <div className="p-10 flex flex-col items-center gap-6 bg-black/90 border-t border-white/10">
             <button 
               onClick={cameraMode === 'photo' ? captureWebPhoto : (isRecording ? stopWebRecording : startWebRecording)}
@@ -252,9 +288,7 @@ const AlbumView: React.FC<AlbumViewProps> = ({ albumId, onBack, onHome }) => {
               }`}
             >
                <div className={`transition-all duration-300 ${
-                 isRecording 
-                   ? 'w-8 h-8 bg-red-600 rounded-lg' 
-                   : (cameraMode === 'photo' ? 'w-16 h-16 bg-white rounded-full' : 'w-14 h-14 bg-red-600 rounded-full')
+                 isRecording ? 'w-8 h-8 bg-red-600 rounded-lg' : (cameraMode === 'photo' ? 'w-16 h-16 bg-white rounded-full' : 'w-14 h-14 bg-red-600 rounded-full')
                }`} />
             </button>
             <p className="text-white/40 text-[10px] font-bold uppercase tracking-widest">

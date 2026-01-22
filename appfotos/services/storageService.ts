@@ -123,6 +123,26 @@ export const storageService = {
     }
   },
 
+  async deleteMedia(albumId: string, fileName: string): Promise<boolean> {
+    try {
+      if (this.isNative) {
+        await withTimeout(Filesystem.deleteFile({
+          path: `${APP_DIR_NAME}/${albumId}/${fileName}`,
+          directory: Directory.Documents
+        }), 2000, 'native-delete-media');
+        return true;
+      } else {
+        const appRoot = await this.opfsEnsureAppDir(true);
+        const albumHandle = await withTimeout(appRoot.getDirectoryHandle(albumId), 1500, 'opfs-get-album-delete') as any;
+        await withTimeout(albumHandle.removeEntry(fileName), 1500, 'opfs-delete-file');
+        return true;
+      }
+    } catch (e) {
+      console.error('AppFotos: Error eliminando media:', e);
+      return false;
+    }
+  },
+
   async listMedia(albumId: string): Promise<any[]> {
     try {
       if (this.isNative) {
@@ -169,7 +189,6 @@ export const storageService = {
     }
   },
 
-  // Mantener compatibilidad de interfaz con HomeGate aunque no se use
   async ensureAccessOnEnter(): Promise<boolean> {
     return true; 
   }
