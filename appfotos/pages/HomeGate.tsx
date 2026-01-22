@@ -18,7 +18,7 @@ const HomeGate: React.FC<HomeGateProps> = ({ onEnter }) => {
 
   const checkFolder = async () => {
     setLoading(true);
-    const ready = await storageService.detectDefaultFolder();
+    const ready = await storageService.isRootReady();
     setFolderReady(ready);
     setLoading(false);
   };
@@ -26,11 +26,11 @@ const HomeGate: React.FC<HomeGateProps> = ({ onEnter }) => {
   const handleCreateFolder = async () => {
     setLoading(true);
     setError(null);
-    const success = await storageService.createFolder();
+    const success = await storageService.selectRootFolder();
     if (success) {
       setFolderReady(true);
     } else {
-      setError("No se pudo configurar la carpeta. Asegúrate de dar los permisos necesarios.");
+      setError("No se pudo configurar la carpeta. Selecciona una ubicación válida y otorga permisos.");
     }
     setLoading(false);
   };
@@ -42,12 +42,12 @@ const HomeGate: React.FC<HomeGateProps> = ({ onEnter }) => {
       </div>
       
       <h1 className="text-4xl font-extrabold text-gray-900 mb-2">AppFotos</h1>
-      <p className="text-gray-600 mb-10 max-w-xs">Gestiona tus recuerdos de forma privada y local.</p>
+      <p className="text-gray-600 mb-10 max-w-xs">Tus fotos guardadas localmente en tu sistema de archivos.</p>
 
       {loading ? (
         <div className="flex flex-col items-center gap-3">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <p className="text-sm text-gray-500 font-medium">Comprobando carpeta...</p>
+          <p className="text-sm text-gray-500 font-medium">Comprobando permisos...</p>
         </div>
       ) : (
         <div className="w-full max-w-sm space-y-4">
@@ -66,21 +66,20 @@ const HomeGate: React.FC<HomeGateProps> = ({ onEnter }) => {
 
           <button
             onClick={handleCreateFolder}
-            disabled={folderReady}
             className={`w-full py-4 px-6 rounded-2xl flex items-center justify-center gap-3 font-bold text-lg border-2 transition-all ${
               !folderReady 
                 ? 'border-blue-600 text-blue-600 hover:bg-blue-50 active:scale-95' 
-                : 'border-gray-300 text-gray-400 cursor-not-allowed'
+                : 'border-gray-300 text-gray-600 bg-gray-50'
             }`}
           >
             <FolderPlus className="w-6 h-6" />
-            {folderReady ? 'Carpeta lista' : 'Crear carpeta en local'}
+            {folderReady ? 'Cambiar / Re-autorizar carpeta' : 'Configurar carpeta raíz'}
           </button>
 
           {folderReady && (
             <div className="flex items-center justify-center gap-2 text-green-600 mt-4 animate-in fade-in duration-500">
               <CheckCircle2 className="w-5 h-5" />
-              <span className="text-sm font-medium">Configuración completada correctamente</span>
+              <span className="text-sm font-medium">Carpeta vinculada correctamente</span>
             </div>
           )}
 

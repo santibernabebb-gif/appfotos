@@ -23,7 +23,8 @@ const AppHome: React.FC<AppHomeProps> = ({ onBack, onHome, onSelectAlbum }) => {
 
   const loadAlbums = async () => {
     setLoading(true);
-    const data = await storageService.getAlbums();
+    // Fix: Changed getAlbums to listAlbums to match storageService implementation
+    const data = await storageService.listAlbums();
     setAlbums(data);
     setLoading(false);
   };
@@ -74,7 +75,7 @@ const AppHome: React.FC<AppHomeProps> = ({ onBack, onHome, onSelectAlbum }) => {
                   </div>
                   <div className="text-left">
                     <p className="font-bold text-gray-800">{album.name}</p>
-                    <p className="text-xs text-gray-400">{album.mediaCount} elementos</p>
+                    <p className="text-xs text-gray-400">{album.mediaCount || 0} elementos</p>
                   </div>
                 </div>
                 <ChevronRight className="w-5 h-5 text-gray-300" />
