@@ -188,95 +188,100 @@ const AlbumView: React.FC<AlbumViewProps> = ({ albumId, onBack, onHome }) => {
     }
   };
 
+  // Lógica de textos de estado vacío
+  const getEmptyStateTitle = () => {
+    if (filter === 'all') return 'Tu carpeta está vacía';
+    if (filter === 'images') return 'No hay fotos';
+    return 'No hay vídeos';
+  };
+
+  const getEmptyStateDescription = () => {
+    if (filter === 'all') {
+      return 'No se han encontrado archivos.\nCaptura tu primer momento usando\nlos botones de arriba.';
+    }
+    const type = filter === 'images' ? 'fotos' : 'vídeos';
+    return `No se han encontrado ${type} en esta carpeta.`;
+  };
+
   return (
     <div className="min-h-screen bg-[#E6E6FA] flex flex-col font-sans select-none overflow-x-hidden relative">
       
       {/* Crédito Superior */}
       <div className="absolute top-2 left-0 right-0 z-50 flex justify-center opacity-40">
-        <span className="text-white text-[8px] font-black uppercase tracking-[0.4em]">
+        <span className="text-indigo-900 text-[8px] font-black uppercase tracking-[0.4em]">
           APPFotos
         </span>
       </div>
 
-      {/* Cabecera Estilo Imagen */}
-      <header className="bg-[#24B2B2] pb-10 rounded-b-[3.5rem] relative overflow-hidden shadow-lg transition-all duration-300">
-        <div className="absolute top-4 right-4 opacity-20 pointer-events-none">
-          <svg width="120" height="80" viewBox="0 0 120 80">
-            <path d="M0 10 Q 30 0 60 10 T 120 10" fill="none" stroke="white" strokeWidth="4" />
-            <path d="M0 30 Q 30 20 60 30 T 120 30" fill="none" stroke="white" strokeWidth="4" />
-            <path d="M0 50 Q 30 40 60 50 T 120 50" fill="none" stroke="white" strokeWidth="4" />
-          </svg>
-        </div>
-
-        <div className="px-6 pt-8 pb-6 flex items-center justify-between z-10 relative gap-3">
-          {!isSearching && (
-            <button onClick={onBack} className="flex-shrink-0 w-12 h-12 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white shadow-sm active:scale-90 transition-transform">
-              <ArrowLeft className="w-6 h-6" />
-            </button>
-          )}
-          
-          {isSearching ? (
-            <div ref={searchRef} className="flex-1 flex items-center bg-white/20 backdrop-blur-lg rounded-full px-4 border border-white/30 animate-in slide-in-from-right-4 duration-300">
-              <Search className="w-4 h-4 text-white/70 mr-2" />
-              <input 
-                autoFocus
-                type="text"
-                placeholder="Buscar..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-transparent py-2 text-white font-medium placeholder:text-white/50 outline-none"
-              />
-              <button onClick={() => { setIsSearching(false); setSearchQuery(''); }} className="ml-2 text-white/70"><X className="w-4 h-4" /></button>
-            </div>
-          ) : (
-            <h1 className="text-2xl font-bold text-white tracking-tight truncate flex-1 text-center">
-              {albumId.replace(/_/g, ' ')}
-            </h1>
-          )}
-
-          <div className="flex gap-2 flex-shrink-0">
-            {!isSearching && (
-              <button 
-                onClick={(e) => { e.stopPropagation(); setIsSearching(true); }}
-                className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white shadow-sm active:scale-90 transition-transform"
-              >
-                <Search className="w-6 h-6" />
-              </button>
-            )}
-            <button 
-              onClick={onHome}
-              className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white shadow-sm active:scale-90 transition-transform"
-              aria-label="Ir al inicio"
-            >
-              <MoreVertical className="w-6 h-6" />
-            </button>
+      {/* Cabecera Estilo Lavanda - Consistente con AppHome */}
+      <header className="px-6 pt-10 pb-6 flex items-center justify-between z-10 relative gap-3">
+        {!isSearching && (
+          <button onClick={onBack} className="flex-shrink-0 w-12 h-12 bg-white/40 backdrop-blur-md rounded-full flex items-center justify-center text-indigo-900 shadow-sm active:scale-90 transition-transform">
+            <ArrowLeft className="w-6 h-6" />
+          </button>
+        )}
+        
+        {isSearching ? (
+          <div ref={searchRef} className="flex-1 flex items-center bg-white/60 backdrop-blur-lg rounded-full px-4 border border-white/80 animate-in slide-in-from-right-4 duration-300 shadow-sm">
+            <Search className="w-4 h-4 text-indigo-400 mr-2" />
+            <input 
+              autoFocus
+              type="text"
+              placeholder="Buscar..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-transparent py-2 text-indigo-900 font-medium placeholder:text-indigo-300 outline-none"
+            />
+            <button onClick={() => { setIsSearching(false); setSearchQuery(''); }} className="ml-2 text-indigo-400"><X className="w-4 h-4" /></button>
           </div>
+        ) : (
+          <h1 className="text-2xl font-bold text-indigo-900 tracking-tight truncate flex-1 text-center">
+            {albumId.replace(/_/g, ' ')}
+          </h1>
+        )}
+
+        <div className="flex gap-2 flex-shrink-0">
+          {!isSearching && (
+            <button 
+              onClick={(e) => { e.stopPropagation(); setIsSearching(true); }}
+              className="w-12 h-12 bg-white/40 backdrop-blur-md rounded-full flex items-center justify-center text-indigo-900 shadow-sm active:scale-90 transition-transform"
+            >
+              <Search className="w-6 h-6" />
+            </button>
+          )}
+          <button 
+            onClick={onHome}
+            className="w-12 h-12 bg-white/40 backdrop-blur-md rounded-full flex items-center justify-center text-indigo-900 shadow-sm active:scale-90 transition-transform"
+            aria-label="Ir al inicio"
+          >
+            <Home className="w-6 h-6" />
+          </button>
         </div>
       </header>
 
-      {/* Botones Muy Pequeños */}
-      <div className="px-6 -mt-6 z-20 flex gap-4 mb-8">
+      {/* Botones de Captura - Retocados para Lavanda */}
+      <div className="px-6 z-20 flex gap-4 mb-10">
         <button 
           onClick={() => openCamera('photo')} 
-          className="flex-1 bg-[#FF6B6B] h-14 rounded-2xl flex items-center justify-center gap-2 shadow-[0_10px_20px_rgba(255,107,107,0.3)] active:scale-95 transition-all group"
+          className="flex-1 bg-white h-14 rounded-2xl flex items-center justify-center gap-2 shadow-[0_10px_20px_rgba(0,0,0,0.05)] active:scale-95 transition-all group border border-white"
         >
-          <Camera className="w-5 h-5 text-white" />
-          <span className="font-black text-white text-[10px] tracking-wider uppercase">Foto</span>
+          <Camera className="w-5 h-5 text-[#FF6B6B]" />
+          <span className="font-black text-indigo-900 text-[10px] tracking-wider uppercase">Foto</span>
         </button>
         <button 
           onClick={() => openCamera('video')} 
-          className="flex-1 bg-[#FFCC4D] h-14 rounded-2xl flex items-center justify-center gap-2 shadow-[0_10px_20px_rgba(255,204,77,0.3)] active:scale-95 transition-all group"
+          className="flex-1 bg-white h-14 rounded-2xl flex items-center justify-center gap-2 shadow-[0_10px_20px_rgba(0,0,0,0.05)] active:scale-95 transition-all group border border-white"
         >
-          <Video className="w-5 h-5 text-[#5C4033]" />
-          <span className="font-black text-[#5C4033] text-[10px] tracking-wider uppercase">Vídeo</span>
+          <Video className="w-5 h-5 text-[#FFCC4D]" />
+          <span className="font-black text-indigo-900 text-[10px] tracking-wider uppercase">Vídeo</span>
         </button>
       </div>
 
-      {/* Tabs - CENTRADOS */}
+      {/* Tabs - CENTRADOS (Colores Lavanda) */}
       <div className="px-6 mb-8 flex justify-center gap-3">
-        <button onClick={() => setFilter('all')} className={`px-6 py-3 rounded-full font-black text-xs flex items-center gap-2 transition-all ${filter === 'all' ? 'bg-[#24B2B2] text-white shadow-lg' : 'bg-white/60 text-indigo-400 border border-indigo-100'}`}><Grid className="w-4 h-4" /> Todo</button>
-        <button onClick={() => setFilter('images')} className={`px-6 py-3 rounded-full font-black text-xs flex items-center gap-2 transition-all ${filter === 'images' ? 'bg-[#24B2B2] text-white shadow-lg' : 'bg-white/60 text-indigo-400 border border-indigo-100'}`}><ImageIcon className="w-4 h-4" /> Fotos</button>
-        <button onClick={() => setFilter('videos')} className={`px-6 py-3 rounded-full font-black text-xs flex items-center gap-2 transition-all ${filter === 'videos' ? 'bg-[#24B2B2] text-white shadow-lg' : 'bg-white/60 text-indigo-400 border border-indigo-100'}`}><Film className="w-4 h-4" /> Vídeos</button>
+        <button onClick={() => setFilter('all')} className={`px-6 py-3 rounded-full font-black text-xs flex items-center gap-2 transition-all ${filter === 'all' ? 'bg-[#6366F1] text-white shadow-lg' : 'bg-white/40 text-indigo-400 border border-white/60'}`}><Grid className="w-4 h-4" /> Todo</button>
+        <button onClick={() => setFilter('images')} className={`px-6 py-3 rounded-full font-black text-xs flex items-center gap-2 transition-all ${filter === 'images' ? 'bg-[#6366F1] text-white shadow-lg' : 'bg-white/40 text-indigo-400 border border-white/60'}`}><ImageIcon className="w-4 h-4" /> Fotos</button>
+        <button onClick={() => setFilter('videos')} className={`px-6 py-3 rounded-full font-black text-xs flex items-center gap-2 transition-all ${filter === 'videos' ? 'bg-[#6366F1] text-white shadow-lg' : 'bg-white/40 text-indigo-400 border border-white/60'}`}><Film className="w-4 h-4" /> Vídeos</button>
       </div>
 
       {/* Grid */}
@@ -289,7 +294,7 @@ const AlbumView: React.FC<AlbumViewProps> = ({ albumId, onBack, onHome }) => {
         ) : filteredItems.length > 0 ? (
           <div className="grid grid-cols-2 gap-4">
             {filteredItems.map(item => (
-              <div key={item.id} onClick={() => openInSystemViewer(item)} className="aspect-square bg-white rounded-[2rem] overflow-hidden relative shadow-md border border-gray-100 active:scale-95 transition-transform cursor-pointer group">
+              <div key={item.id} onClick={() => openInSystemViewer(item)} className="aspect-square bg-white rounded-[2rem] overflow-hidden relative shadow-md border border-white/80 active:scale-95 transition-transform cursor-pointer group">
                 {item.type === 'image' ? <img src={item.url} alt={item.name} className="w-full h-full object-cover" /> : <video src={item.url} className="w-full h-full object-cover" playsInline />}
                 <button onClick={(e) => handleDelete(e, item)} className="absolute bottom-3 right-3 bg-red-500 p-2.5 rounded-2xl text-white shadow-lg opacity-0 group-hover:opacity-100 active:scale-90 transition-all z-10"><Trash2 className="w-4 h-4" /></button>
                 <div className="absolute top-3 left-3 bg-black/40 backdrop-blur-sm p-2 rounded-xl text-white pointer-events-none">{item.type === 'video' ? <Film className="w-3.5 h-3.5" /> : <ImageIcon className="w-3.5 h-3.5" />}</div>
@@ -297,19 +302,23 @@ const AlbumView: React.FC<AlbumViewProps> = ({ albumId, onBack, onHome }) => {
             ))}
           </div>
         ) : (
-          <div className="py-16 px-6 border-2 border-dashed border-indigo-200 rounded-[3.5rem] flex flex-col items-center justify-center text-center bg-white/40">
+          <div className="py-16 px-6 border-2 border-dashed border-indigo-200 rounded-[3.5rem] flex flex-col items-center justify-center text-center bg-white/20 shadow-inner">
             <div className="relative mb-8">
-              <div className="w-32 h-32 bg-[#FEE2E2] rounded-full flex items-center justify-center"><Umbrella className="w-16 h-16 text-[#24B2B2]" /></div>
-              <div className="absolute bottom-2 right-2 w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-lg border border-gray-50"><Camera className="w-6 h-6 text-[#1F2937]" /></div>
+              <div className="w-32 h-32 bg-[#FEE2E2] rounded-full flex items-center justify-center shadow-sm"><Umbrella className="w-16 h-16 text-indigo-400" /></div>
+              <div className="absolute bottom-2 right-2 w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-lg border border-gray-50"><Camera className="w-6 h-6 text-indigo-900" /></div>
             </div>
-            <h3 className="text-2xl font-black text-indigo-900 mb-3">Tu carpeta está vacía</h3>
-            <p className="text-indigo-500 text-sm font-medium leading-relaxed">No se han encontrado archivos.<br />Captura tu primer momento usando<br />los botones de arriba.</p>
+            <h3 className="text-2xl font-black text-indigo-900 mb-3 whitespace-pre-line">
+              {getEmptyStateTitle()}
+            </h3>
+            <p className="text-indigo-500 text-sm font-medium leading-relaxed whitespace-pre-line">
+              {getEmptyStateDescription()}
+            </p>
           </div>
         )}
       </main>
 
       {/* FAB Nocturno */}
-      <button className="fixed bottom-8 right-8 w-14 h-14 bg-[#1F2937] text-white rounded-full flex items-center justify-center shadow-xl active:scale-90 transition-transform z-30"><Moon className="w-6 h-6 fill-white" /></button>
+      <button className="fixed bottom-8 right-8 w-14 h-14 bg-indigo-900 text-white rounded-full flex items-center justify-center shadow-xl active:scale-90 transition-transform z-30"><Moon className="w-6 h-6 fill-white" /></button>
 
       {/* Modal Cámara */}
       {isCameraOpen && (
