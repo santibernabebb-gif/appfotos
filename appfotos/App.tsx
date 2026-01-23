@@ -25,7 +25,7 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="antialiased max-w-md mx-auto min-h-screen bg-gray-50 shadow-2xl relative">
+    <div className="antialiased max-w-md mx-auto min-h-screen bg-[#E6E6FA] shadow-2xl relative">
       {currentView === AppView.HOME_GATE && (
         <HomeGate onEnter={navigateToAppHome} />
       )}

@@ -63,23 +63,30 @@ const AppHome: React.FC<AppHomeProps> = ({ onBack, onHome, onSelectAlbum }) => {
   );
 
   return (
-    <div className="min-h-screen bg-[#00CCD1] flex flex-col font-sans select-none">
+    <div className="min-h-screen bg-[#E6E6FA] flex flex-col font-sans select-none relative">
       
-      {/* Header con botones solicitados */}
+      {/* Crédito Superior */}
+      <div className="absolute top-2 left-0 right-0 z-0 flex justify-center opacity-30">
+        <span className="text-indigo-900 text-[8px] font-black uppercase tracking-[0.4em]">
+          APPFotos
+        </span>
+      </div>
+
+      {/* Header */}
       <header className="px-6 pt-8 pb-4 flex items-center justify-between z-10">
         <button 
           onClick={onBack}
-          className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-gray-800 shadow-md active:scale-90 transition-transform"
+          className="w-12 h-12 bg-white/40 backdrop-blur-md rounded-full flex items-center justify-center text-gray-800 shadow-sm active:scale-90 transition-transform"
           aria-label="Volver"
         >
           <ArrowLeft className="w-6 h-6" />
         </button>
         
-        <h1 className="text-2xl font-bold text-gray-800 tracking-tight">Mis Recuerdos</h1>
+        <h1 className="text-2xl font-bold text-indigo-900 tracking-tight">Mis Recuerdos</h1>
         
         <button 
           onClick={onHome}
-          className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-gray-800 shadow-md active:scale-90 transition-transform"
+          className="w-12 h-12 bg-white/40 backdrop-blur-md rounded-full flex items-center justify-center text-gray-800 shadow-sm active:scale-90 transition-transform"
           aria-label="Inicio"
         >
           <Home className="w-6 h-6" />
@@ -89,23 +96,23 @@ const AppHome: React.FC<AppHomeProps> = ({ onBack, onHome, onSelectAlbum }) => {
       {/* Search Bar */}
       <div className="px-6 mb-8 z-10">
         <div className="relative group">
-          <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
+          <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-indigo-300 group-focus-within:text-indigo-500 transition-colors" />
           <input 
             type="text"
             placeholder="Buscar en tus recuerdos..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-white/90 backdrop-blur-sm py-5 pl-14 pr-6 rounded-[2rem] text-gray-700 font-medium placeholder:text-gray-400 focus:bg-white outline-none shadow-xl transition-all"
+            className="w-full bg-white/80 backdrop-blur-sm py-5 pl-14 pr-6 rounded-[2rem] text-gray-700 font-medium placeholder:text-indigo-200 focus:bg-white outline-none shadow-xl transition-all"
           />
         </div>
       </div>
 
       {/* Grid de Álbumes */}
-      <main className="flex-1 px-6 pb-20 overflow-y-auto">
+      <main className="flex-1 px-6 pb-12 overflow-y-auto">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3">
-            <Loader2 className="w-10 h-10 animate-spin text-white opacity-70" />
-            <span className="text-white font-bold tracking-widest uppercase text-xs">Cargando...</span>
+            <Loader2 className="w-10 h-10 animate-spin text-indigo-400 opacity-70" />
+            <span className="text-indigo-400 font-bold tracking-widest uppercase text-xs">Cargando...</span>
           </div>
         ) : filteredAlbums.length > 0 ? (
           <div className="grid grid-cols-2 gap-5">
@@ -143,7 +150,7 @@ const AppHome: React.FC<AppHomeProps> = ({ onBack, onHome, onSelectAlbum }) => {
             })}
           </div>
         ) : (
-          <div className="text-center py-20 text-white/60">
+          <div className="text-center py-20 text-indigo-300">
             <p className="font-bold italic">No se han encontrado álbumes.</p>
           </div>
         )}
@@ -152,17 +159,15 @@ const AppHome: React.FC<AppHomeProps> = ({ onBack, onHome, onSelectAlbum }) => {
       {/* FAB - Botón Flotante */}
       <button 
         onClick={() => setShowModal(true)}
-        className="fixed bottom-8 right-8 w-16 h-16 bg-[#F97316] text-white rounded-full flex items-center justify-center shadow-[0_10px_30px_rgba(249,115,22,0.5)] active:scale-90 transition-transform z-20 border-2 border-white"
+        className="fixed bottom-8 right-8 w-16 h-16 bg-[#6366F1] text-white rounded-full flex items-center justify-center shadow-[0_10px_30px_rgba(99,102,241,0.4)] active:scale-90 transition-transform z-20 border-2 border-white"
       >
         <Plus className="w-10 h-10 stroke-[3]" />
       </button>
 
-      {/* Modal Nuevo Álbum Rediseñado (Según Imagen) */}
+      {/* Modal Nuevo Álbum */}
       {showModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/50 backdrop-blur-sm animate-in fade-in duration-300">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-indigo-900/40 backdrop-blur-sm animate-in fade-in duration-300">
           <div className="bg-[#F8F9FB] w-full max-w-sm rounded-[3rem] p-10 shadow-[0_20px_50px_rgba(0,0,0,0.3)] animate-in zoom-in-95 duration-300 flex flex-col items-center">
-            
-            {/* Icono de Carpeta con Badge */}
             <div className="relative mb-6">
               <div className="w-24 h-24 bg-[#D1EBE8] rounded-[2rem] flex items-center justify-center shadow-sm">
                 <FolderPlus className="w-10 h-10 text-[#007F94] fill-[#007F94]/20" />
@@ -171,10 +176,8 @@ const AppHome: React.FC<AppHomeProps> = ({ onBack, onHome, onSelectAlbum }) => {
                 <Flower className="w-4 h-4 text-white fill-white" />
               </div>
             </div>
-
             <h3 className="text-3xl font-bold text-[#1F4D32] mb-2">Nuevo Álbum</h3>
             <p className="text-[#8E9AAF] text-center text-sm mb-10 font-medium">Nombra tu nueva colección privada</p>
-            
             <form onSubmit={handleCreateAlbum} className="w-full">
               <div className="relative mb-12">
                 <input
@@ -186,21 +189,9 @@ const AppHome: React.FC<AppHomeProps> = ({ onBack, onHome, onSelectAlbum }) => {
                   className="w-full py-5 px-6 bg-white rounded-[1.5rem] border border-gray-100 shadow-[0_4px_15px_rgba(0,0,0,0.02)] outline-none focus:ring-2 focus:ring-[#007F94]/20 text-gray-700 text-center font-medium placeholder:text-gray-300 transition-all"
                 />
               </div>
-
               <div className="flex items-center justify-between gap-4 px-4">
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="text-[#007F94] font-bold text-lg active:opacity-60 transition-opacity"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="px-10 py-4 bg-gradient-to-r from-[#2B849F] to-[#D4891C] text-white rounded-[1.5rem] font-bold text-lg shadow-lg active:scale-95 transition-all"
-                >
-                  Crear
-                </button>
+                <button type="button" onClick={() => setShowModal(false)} className="text-[#007F94] font-bold text-lg active:opacity-60 transition-opacity">Cancelar</button>
+                <button type="submit" className="px-10 py-4 bg-gradient-to-r from-[#2B849F] to-[#D4891C] text-white rounded-[1.5rem] font-bold text-lg shadow-lg active:scale-95 transition-all">Crear</button>
               </div>
             </form>
           </div>
