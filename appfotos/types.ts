@@ -17,6 +17,7 @@ export interface Album {
   id: string;
   name: string;
   mediaCount: number;
+  createdAt: number;
 }
 
 export interface AppState {

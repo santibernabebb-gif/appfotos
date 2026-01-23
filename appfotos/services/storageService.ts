@@ -1,8 +1,10 @@
 
 import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
+import { Preferences } from '@capacitor/preferences';
 
 const APP_DIR_NAME = 'AppFotosSantiSystems';
+const ALBUM_METADATA_KEY = 'AppFotos_AlbumMetadata';
 
 async function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
   let timeoutId: any;
@@ -22,7 +24,17 @@ async function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise
 export const storageService = {
   isNative: Capacitor.isNativePlatform(),
 
-  // Helpers OPFS para Web con creación automática
+  async getMetadata() {
+    const { value } = await Preferences.get({ key: ALBUM_METADATA_KEY });
+    return value ? JSON.parse(value) : {};
+  },
+
+  async saveMetadata(id: string, data: any) {
+    const metadata = await this.getMetadata();
+    metadata[id] = { ...metadata[id], ...data };
+    await Preferences.set({ key: ALBUM_METADATA_KEY, value: JSON.stringify(metadata) });
+  },
+
   async getOpfsRoot(): Promise<FileSystemDirectoryHandle> {
     return await navigator.storage.getDirectory();
   },
@@ -32,7 +44,6 @@ export const storageService = {
     return await withTimeout(root.getDirectoryHandle(APP_DIR_NAME, { create }), 1500, 'getDirectoryHandle-ensure') as FileSystemDirectoryHandle;
   },
 
-  // Inicialización nativa automática
   async ensureNativeAppDir(): Promise<void> {
     if (!this.isNative) return;
     try {
@@ -46,24 +57,59 @@ export const storageService = {
     }
   },
 
-  // Funciones de negocio con auto-inicialización
   async listAlbums(): Promise<any[]> {
     try {
+      const metadata = await this.getMetadata();
+      const albums = [];
+
       if (this.isNative) {
         await this.ensureNativeAppDir();
         const res = await withTimeout(Filesystem.readdir({ path: APP_DIR_NAME, directory: Directory.Documents }), 2000, 'native-readdir') as any;
-        return res.files.filter((f: any) => f.type === 'directory').map((f: any) => ({ id: f.name, name: f.name, mediaCount: 0 }));
+        
+        for (const f of res.files) {
+          if (f.type === 'directory') {
+            // Contar archivos dentro del directorio nativo
+            let mediaCount = 0;
+            try {
+              const subRes = await withTimeout(Filesystem.readdir({ 
+                path: `${APP_DIR_NAME}/${f.name}`, 
+                directory: Directory.Documents 
+              }), 1000, 'native-count-files') as any;
+              mediaCount = subRes.files.filter((sf: any) => sf.type === 'file').length;
+            } catch (err) {
+              console.warn(`Error contando archivos en ${f.name}`, err);
+            }
+
+            albums.push({ 
+              id: f.name, 
+              name: f.name.replace(/_/g, ' '), 
+              mediaCount: mediaCount,
+              createdAt: metadata[f.name]?.createdAt || Date.now()
+            });
+          }
+        }
       } else {
         const appRoot = await this.opfsEnsureAppDir(true);
-        const albums = [];
         // @ts-ignore
         for await (const entry of appRoot.values()) {
           if (entry.kind === 'directory') {
-            albums.push({ id: entry.name, name: entry.name, mediaCount: 0 });
+            // Contar archivos en OPFS
+            let count = 0;
+            // @ts-ignore
+            for await (const subEntry of entry.values()) {
+              if (subEntry.kind === 'file') count++;
+            }
+
+            albums.push({ 
+              id: entry.name, 
+              name: entry.name.replace(/_/g, ' '), 
+              mediaCount: count,
+              createdAt: metadata[entry.name]?.createdAt || Date.now()
+            });
           }
         }
-        return albums;
       }
+      return albums;
     } catch (e) {
       console.error('AppFotos: Error listando álbumes:', e);
       return [];
@@ -72,18 +118,53 @@ export const storageService = {
 
   async createAlbum(name: string): Promise<boolean> {
     try {
-      const cleanName = name.trim().replace(/[^a-z0-9]/gi, '_');
+      const cleanName = name.trim().replace(/[<>:"/\\|?*]/g, '_');
+      const timestamp = Date.now();
+      
       if (this.isNative) {
         await this.ensureNativeAppDir();
         await withTimeout(Filesystem.mkdir({ path: `${APP_DIR_NAME}/${cleanName}`, directory: Directory.Documents, recursive: true }), 1500, 'native-create-album');
-        return true;
       } else {
         const appRoot = await this.opfsEnsureAppDir(true);
         await withTimeout(appRoot.getDirectoryHandle(cleanName, { create: true }), 1500, 'opfs-create-album');
-        return true;
       }
+      
+      await this.saveMetadata(cleanName, { createdAt: timestamp });
+      return true;
     } catch (e) {
       console.error('AppFotos: Error creando álbum:', e);
+      return false;
+    }
+  },
+
+  async renameAlbum(oldId: string, newName: string): Promise<boolean> {
+    try {
+      const cleanNewName = newName.trim().replace(/[<>:"/\\|?*]/g, '_');
+      if (oldId === cleanNewName) return true;
+
+      if (this.isNative) {
+        await withTimeout(Filesystem.rename({
+          from: `${APP_DIR_NAME}/${oldId}`,
+          to: `${APP_DIR_NAME}/${cleanNewName}`,
+          directory: Directory.Documents
+        }), 2000, 'native-rename-album');
+      } else {
+        const appRoot = await this.opfsEnsureAppDir(true);
+        const handle = await appRoot.getDirectoryHandle(oldId);
+        // @ts-ignore
+        await withTimeout(handle.move(appRoot, cleanNewName), 2000, 'opfs-rename-album');
+      }
+
+      const metadata = await this.getMetadata();
+      if (metadata[oldId]) {
+        metadata[cleanNewName] = metadata[oldId];
+        delete metadata[oldId];
+        await Preferences.set({ key: ALBUM_METADATA_KEY, value: JSON.stringify(metadata) });
+      }
+
+      return true;
+    } catch (e) {
+      console.error('AppFotos: Error renombrando álbum:', e);
       return false;
     }
   },
@@ -96,13 +177,19 @@ export const storageService = {
           directory: Directory.Documents,
           recursive: true
         }), 2000, 'native-delete-album');
-        return true;
       } else {
         const appRoot = await this.opfsEnsureAppDir(true);
-        // @ts-ignore - removeEntry soporta { recursive: true } en OPFS
+        // @ts-ignore
         await withTimeout(appRoot.removeEntry(albumId, { recursive: true }), 2000, 'opfs-delete-album');
-        return true;
       }
+
+      const metadata = await this.getMetadata();
+      if (metadata[albumId]) {
+        delete metadata[albumId];
+        await Preferences.set({ key: ALBUM_METADATA_KEY, value: JSON.stringify(metadata) });
+      }
+
+      return true;
     } catch (e) {
       console.error('AppFotos: Error eliminando álbum:', e);
       return false;
